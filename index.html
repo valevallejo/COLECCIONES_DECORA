@@ -199,6 +199,50 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .liqtag{position:absolute; bottom:8px; right:8px; font-size:10px; font-weight:800; letter-spacing:.4px;
     padding:3px 8px; border-radius:999px; color:#fff; background:var(--serious); box-shadow:0 1px 3px rgba(0,0,0,.15);}
 
+  /* ---------- vista Análisis ---------- */
+  .an-wrap{display:flex; flex-direction:column; gap:14px;}
+  .an-card{background:var(--surface-1); border:1px solid var(--ring); border-radius:12px; padding:16px 18px;}
+  .an-title{font-size:14.5px; font-weight:700; margin-bottom:4px;}
+  .an-sub{font-size:12px; color:var(--ink-3); margin-bottom:12px;}
+  .narr{font-size:13.5px; line-height:1.65;}
+  .narr b{font-weight:700;}
+  .ritmo-badge{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+    padding:4px 11px; border-radius:999px;}
+  .an-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:12px;}
+  .an-tile{background:var(--page); border:1px solid var(--grid); border-radius:10px; padding:10px 12px;}
+  .an-tile .lbl{font-size:11.5px; color:var(--ink-2);}
+  .an-tile .val{font-size:19px; font-weight:600; margin-top:1px;}
+  .an-tile .note{font-size:11px; color:var(--ink-3);}
+  .stackbar{display:flex; height:20px; border-radius:6px; overflow:hidden; background:var(--page);}
+  .stackbar .seg{border-right:2px solid var(--surface-1); min-width:2px;}
+  .stackbar .seg:last-child{border-right:0;}
+  .stack-lbl{font-size:11.5px; color:var(--ink-2); margin:10px 0 4px;}
+  .leg{display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:10px; font-size:12px; color:var(--ink-2);}
+  .leg .dot{width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:0;}
+  .mini-meter{position:relative; height:8px; border-radius:4px; background:var(--page); min-width:110px;}
+  .mini-meter .mfill{height:100%; border-radius:4px 0 0 4px;}
+  .mini-meter .mexp{position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--ink-2);}
+  .hbar-row{display:grid; grid-template-columns:minmax(120px,180px) 1fr minmax(130px,auto); gap:12px;
+    align-items:center; padding:5px 0; font-size:12.5px;}
+  .hbar-track{display:flex; height:14px; border-radius:4px; overflow:hidden; background:var(--page);}
+  .hbar-track .seg{border-right:2px solid var(--surface-1);}
+  .hbar-track .seg:last-child{border-right:0;}
+  .hbar-val{text-align:right; font-variant-numeric:tabular-nums; color:var(--ink-1);}
+  .hbar-val small{color:var(--ink-3);}
+  .top-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media (max-width:760px){ .top-grid{grid-template-columns:1fr;} }
+  .top-item{display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--grid); font-size:12.5px;}
+  .top-item:last-child{border-bottom:0;}
+  .top-item .tthumb{width:38px; height:38px; border-radius:8px; background:var(--page); display:flex;
+    align-items:center; justify-content:center; font-size:18px; overflow:hidden; flex-shrink:0;}
+  .top-item .tthumb img{width:100%; height:100%; object-fit:contain;}
+  .top-item .tinfo{flex:1; min-width:0;}
+  .top-item .tname{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .top-item .tmeta{font-size:11px; color:var(--ink-3);}
+  .top-item .tst{font-weight:700; font-size:13.5px; text-align:right;}
+  .top-item .tst small{display:block; font-weight:400; font-size:10.5px; color:var(--ink-3);}
+  .comp-hl td{background:var(--accent-bg);}
+
   .empty{padding:50px 20px; text-align:center; color:var(--ink-3); font-size:14px;}
   .count-line{font-size:12.5px; color:var(--ink-2); margin:0 0 10px 2px;}
   footer{margin-top:26px; font-size:11.5px; color:var(--ink-3); line-height:1.6;}
@@ -242,6 +286,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="view-toggle">
       <button id="btnCards" class="active">Tarjetas</button>
       <button id="btnTable">Tabla</button>
+      <button id="btnAnalisis">Análisis</button>
     </div>
   </div>
 
@@ -714,6 +759,246 @@ function tableHTML(rows){
   return `<div class="tablewrap"><table>${head}${body}</table></div>`;
 }
 
+/* ================= vista Análisis ================= */
+function aggRows(rows){
+  const a = {refs:0, comp:0, vend:0, inv:0, venta:0, invCosto:0, invOferta:0, expW:0, sinIng:0,
+             sanaU:0, tempU:0, tardU:0, obsU:0, costoSana:0, costoTemp:0, costoTard:0, costoObs:0,
+             ofertaTard:0, ofertaObs:0, edades:[]};
+  for (const r of rows){
+    if (r.sinIngresar){ a.sinIng++; continue; }
+    a.refs++;
+    a.comp += r.compradas; a.vend += r.vendidas; a.inv += r.inventario; a.venta += r.venta;
+    a.invCosto += r.inventario * r.costo;
+    a.invOferta += r.inventario * r.precio;
+    a.expW += r.compradas * r.vidaPct;
+    a.edades.push(r.edadDias);
+    if (r.edadDias > 240){ a.obsU += r.inventario; a.costoObs += r.inventario*r.costo; a.ofertaObs += r.inventario*r.precio; }
+    else if (r.edadDias >= 121){ a.tardU += r.inventario; a.costoTard += r.inventario*r.costo; a.ofertaTard += r.inventario*r.precio; }
+    else if (r.edadDias >= 91){ a.tempU += r.inventario; a.costoTemp += r.inventario*r.costo; }
+    else { a.sanaU += r.inventario; a.costoSana += r.inventario*r.costo; }
+  }
+  a.st = a.comp ? a.vend / a.comp : 0;
+  a.exp = a.comp ? a.expW / a.comp : 0;
+  a.ritmo = a.exp > 0.02 ? a.st / a.exp : 1;
+  a.liqU = a.tardU + a.obsU;
+  a.liqCosto = a.costoTard + a.costoObs;
+  a.liqOferta = a.ofertaTard + a.ofertaObs;
+  a.edadTipica = a.edades.length ? a.edades.slice().sort((x,y)=>x-y)[Math.floor(a.edades.length/2)] : 0;
+  return a;
+}
+function ritmoBadge(a){
+  if (a.exp <= 0.02) return {label:'Muy temprano para evaluar', color:'var(--ink-3)', bg:'var(--accent-bg)', icon:'○'};
+  if (a.ritmo >= 1.05) return {label:'Adelantada', color:'var(--good)', bg:'var(--good-bg)', icon:'●'};
+  if (a.ritmo >= 0.9)  return {label:'Al ritmo', color:'var(--good)', bg:'var(--good-bg)', icon:'●'};
+  if (a.ritmo >= 0.6)  return {label:'Atrasada', color:'var(--warning)', bg:'var(--warning-bg)', icon:'▲'};
+  return {label:'Crítica', color:'var(--critical)', bg:'var(--critical-bg)', icon:'■'};
+}
+function groupAgg(rows, keyFn){
+  const g = {};
+  for (const r of rows){ const k = keyFn(r) || '—'; (g[k] = g[k] || []).push(r); }
+  return Object.entries(g).map(([nombre, rs]) => ({nombre, a: aggRows(rs), n: rs.length}));
+}
+function stackbarHTML(segs, total){
+  if (!total) return '<div class="stackbar"></div>';
+  return '<div class="stackbar">' + segs.filter(s => s.v > 0).map(s =>
+    `<div class="seg" style="flex:${s.v}; background:${s.color}" title="${esc(s.t)}: ${fmtInt(s.v)}"></div>`).join('') + '</div>';
+}
+const EDAD_SEGS = a => [
+  {v:a.sanaU, color:'var(--good)',     t:'Edad sana 0–90'},
+  {v:a.tempU, color:'var(--warning)',  t:'Lenta temprana 91–120'},
+  {v:a.tardU, color:'var(--serious)',  t:'Liquidación 121–240'},
+  {v:a.obsU,  color:'var(--critical)', t:'Obsoleto +240'},
+];
+function narrativaHTML(a, subs){
+  const fSel = document.getElementById('fFeria').value;
+  const nombre = fSel ? `«${esc(fSel)}»` : 'la selección actual';
+  const b = ritmoBadge(a);
+  const gap = Math.round((a.st - a.exp) * 100);
+  const pctLiqInv = a.inv ? a.liqU / a.inv : 0;
+  const conVenta = subs.filter(s => s.a.comp > 0);
+  const peor = conVenta.length ? conVenta.reduce((m,s) => s.a.ritmo < m.a.ritmo ? s : m) : null;
+  const mejor = conVenta.length ? conVenta.reduce((m,s) => s.a.ritmo > m.a.ritmo ? s : m) : null;
+  let t = `${nombre} ha evacuado el <b>${pct(a.st)}</b> de las unidades compradas, frente a un <b>${pct(a.exp)}</b> esperado ` +
+    `para su edad típica de <b>${fmtInt(a.edadTipica)} días</b> → va <b style="color:${b.color}">${b.label.toLowerCase()}</b>` +
+    (a.exp > 0.02 ? ` (${gap >= 0 ? '+' : ''}${gap} pts frente a lo esperado)` : '') + '. ';
+  t += `Quedan <b>${fmtInt(a.inv)} unidades</b> en piso (${fmtCOPc(a.invCosto)} al costo · ${fmtCOPc(a.invOferta)} a precio oferta)`;
+  t += pctLiqInv > 0 ? `, y el <b>${pct(pctLiqInv)}</b> de ese inventario ya está en edad de liquidación (121+ días)` +
+    (a.liqCosto > 0 ? `, equivalente a <b>${fmtCOPc(a.liqCosto)}</b> al costo por rescatar. ` : '. ') : '. ';
+  if (peor && mejor && peor.nombre !== mejor.nombre && conVenta.length > 1){
+    t += `La sublínea más rezagada es <b>${esc(peor.nombre)}</b> (${pct(peor.a.st)} vs ${pct(peor.a.exp)} esperado) ` +
+         `y la de mejor desempeño es <b>${esc(mejor.nombre)}</b> (${pct(mejor.a.st)}). `;
+  }
+  if (a.sinIng > 0) t += `${fmtInt(a.sinIng)} referencia${a.sinIng===1?'':'s'} aún no ingresa${a.sinIng===1?'':'n'} a piso. `;
+  if (!fSel){
+    const nCols = [...new Set(currentRows().map(r => r.feria))].length;
+    if (nCols > 1) t += `<span style="color:var(--ink-3)">(Estás viendo ${nCols} colecciones agregadas — filtra una para su análisis individual.)</span>`;
+  }
+  return t;
+}
+function analisisHTML(rows){
+  if (!rows.length) return '<div class="empty">No hay referencias con los filtros actuales.</div>';
+  const a = aggRows(rows);
+  const subs = groupAgg(rows, r => r.subcat).sort((x,y) => x.a.ritmo - y.a.ritmo);
+  const b = ritmoBadge(a);
+  let h = '<div class="an-wrap">';
+
+  /* 1 — semáforo ejecutivo */
+  h += `<div class="an-card">
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;">
+      <div class="an-title" style="margin:0">Cómo va ${document.getElementById('fFeria').value ? 'la colección' : 'la selección'}</div>
+      <span class="ritmo-badge" style="background:${b.bg}; color:${b.color}">${b.icon} ${b.label}</span>
+    </div>
+    <p class="narr" style="margin-top:10px">${narrativaHTML(a, subs)}</p>
+    <div class="an-tiles">
+      <div class="an-tile"><div class="lbl">Sell-through</div><div class="val">${pct(a.st)}</div><div class="note">esperado ${pct(a.exp)}</div></div>
+      <div class="an-tile"><div class="lbl">Venta acumulada</div><div class="val">${fmtCOPc(a.venta)}</div><div class="note">${fmtInt(a.vend)} unid.</div></div>
+      <div class="an-tile"><div class="lbl">Inventario restante</div><div class="val">${fmtInt(a.inv)}</div><div class="note">unidades en piso</div></div>
+      <div class="an-tile"><div class="lbl">Inventario al costo</div><div class="val">${fmtCOPc(a.invCosto)}</div><div class="note">capital inmovilizado</div></div>
+      <div class="an-tile"><div class="lbl">Inventario a oferta</div><div class="val">${fmtCOPc(a.invOferta)}</div><div class="note">venta potencial en piso</div></div>
+    </div>
+  </div>`;
+
+  /* 2 — mix de edades */
+  h += `<div class="an-card">
+    <div class="an-title">Mix de edades del inventario restante</div>
+    <div class="an-sub">Dónde está parado lo que no se ha vendido, según su edad</div>
+    <div class="stack-lbl">En unidades (${fmtInt(a.inv)})</div>
+    ${stackbarHTML(EDAD_SEGS(a), a.inv)}
+    <div class="stack-lbl">En $ al costo (${fmtCOPc(a.invCosto)})</div>
+    ${stackbarHTML([
+      {v:a.costoSana, color:'var(--good)', t:'Edad sana'},
+      {v:a.costoTemp, color:'var(--warning)', t:'Lenta temprana'},
+      {v:a.costoTard, color:'var(--serious)', t:'Liquidación'},
+      {v:a.costoObs,  color:'var(--critical)', t:'Obsoleto'},
+    ], a.invCosto)}
+    <div class="leg">
+      <span><span class="dot" style="background:var(--good)"></span>Sana 0–90: ${fmtInt(a.sanaU)} u.</span>
+      <span><span class="dot" style="background:var(--warning)"></span>Lenta temprana 91–120: ${fmtInt(a.tempU)} u.</span>
+      <span><span class="dot" style="background:var(--serious)"></span>Liquidación 121–240: ${fmtInt(a.tardU)} u.</span>
+      <span><span class="dot" style="background:var(--critical)"></span>Obsoleto +240: ${fmtInt(a.obsU)} u.</span>
+    </div>
+  </div>`;
+
+  /* 3 — sublíneas */
+  const subRow = s => {
+    const sb = ritmoBadge(s.a);
+    return `<tr>
+      <td><b>${esc(s.nombre)}</b></td>
+      <td class="num">${fmtInt(s.n)}</td>
+      <td><div class="mini-meter"><div class="mfill" style="width:${(s.a.st*100).toFixed(1)}%; background:${sb.color}"></div>
+        <div class="mexp" style="left:${(s.a.exp*100).toFixed(1)}%"></div></div></td>
+      <td class="num"><b>${pct(s.a.st)}</b></td>
+      <td class="num">${pct(s.a.exp)}</td>
+      <td class="num">${fmtCOPc(s.a.venta)}</td>
+      <td class="num">${fmtInt(s.a.inv)}</td>
+      <td class="num">${fmtCOPc(s.a.invCosto)}</td>
+      <td class="num">${s.a.inv ? pct(s.a.liqU/s.a.inv) : '—'}</td>
+      <td><span class="ritmo-badge" style="background:${sb.bg}; color:${sb.color}; font-size:10.5px; padding:2px 8px">${sb.icon} ${sb.label}</span></td>
+    </tr>`;
+  };
+  h += `<div class="an-card">
+    <div class="an-title">Desempeño por sublínea</div>
+    <div class="an-sub">Ordenado de la más rezagada a la mejor · la marca vertical en la barra es el avance esperado por edad</div>
+    <div class="tablewrap" style="border:0; border-radius:0"><table style="min-width:860px">
+      <tr><th>Sublínea</th><th class="num">Refs</th><th>Sell-through</th><th class="num">ST</th><th class="num">Esperado</th>
+      <th class="num">Venta $</th><th class="num">Inv. unid.</th><th class="num">Inv. $ costo</th><th class="num">% inv. en liq.</th><th>Ritmo</th></tr>
+      ${subs.map(subRow).join('')}
+    </table></div>
+  </div>`;
+
+  /* 5 — inventario en riesgo */
+  const enRiesgo = subs.map(s => ({nombre:s.nombre, tard:s.a.costoTard, obs:s.a.costoObs, tot:s.a.liqCosto, oferta:s.a.liqOferta}))
+    .filter(s => s.tot > 0).sort((x,y) => y.tot - x.tot);
+  if (enRiesgo.length){
+    const maxR = enRiesgo[0].tot;
+    h += `<div class="an-card">
+      <div class="an-title">Inventario $ en riesgo (121+ días)</div>
+      <div class="an-sub">Al costo: ${fmtCOPc(a.liqCosto)} · a precio oferta: ${fmtCOPc(a.liqOferta)} — la plata que la liquidación debe rescatar, por sublínea</div>
+      ${enRiesgo.map(s => `<div class="hbar-row">
+        <span><b>${esc(s.nombre)}</b></span>
+        <div class="hbar-track" style="width:${Math.max(4,(s.tot/maxR*100)).toFixed(1)}%">
+          ${s.tard>0?`<div class="seg" style="flex:${s.tard}; background:var(--serious)" title="Liquidación 121–240"></div>`:''}
+          ${s.obs>0?`<div class="seg" style="flex:${s.obs}; background:var(--critical)" title="Obsoleto +240"></div>`:''}
+        </div>
+        <span class="hbar-val">${fmtCOPc(s.tot)} <small>· oferta ${fmtCOPc(s.oferta)}</small></span>
+      </div>`).join('')}
+      <div class="leg"><span><span class="dot" style="background:var(--serious)"></span>Liquidación 121–240 d</span>
+      <span><span class="dot" style="background:var(--critical)"></span>Obsoleto +240 d</span></div>
+    </div>`;
+  }
+
+  /* 4 — top y bottom 5 */
+  const eleg = rows.filter(r => !r.sinIngresar && r.compradas > 0);
+  if (eleg.length >= 2){
+    const top = eleg.slice().sort((x,y) => y.st - x.st).slice(0,5);
+    const low = eleg.slice().sort((x,y) => x.st - y.st).slice(0,5);
+    const item = r => `<div class="top-item">
+      <div class="tthumb">${r.foto ? `<img src="${esc(r.foto)}" loading="lazy" onerror="this.replaceWith('${glyphFor(r.subcat)}')">` : glyphFor(r.subcat)}</div>
+      <div class="tinfo"><div class="tname">${esc(r.desc || r.ref)}</div>
+        <div class="tmeta">${esc(r.ref)} · ${esc(r.subcat)} · ${fmtInt(r.edadDias)} d · inv ${fmtInt(r.inventario)}</div></div>
+      <div class="tst">${pct(r.st)}<small>${fmtCOPc(r.venta)}</small></div>
+    </div>`;
+    h += `<div class="an-card"><div class="top-grid">
+      <div><div class="an-title" style="color:var(--good-text)">▲ Los que más evacúan</div>${top.map(item).join('')}</div>
+      <div><div class="an-title" style="color:var(--critical)">▼ Los que frenan la colección</div>${low.map(item).join('')}</div>
+    </div></div>`;
+  }
+
+  /* 6 — concentración por tienda */
+  const tiendaAgg = {};
+  let hayTiendas = false;
+  for (const r of rows){
+    if (!r.tiendas) continue;
+    for (const x of r.tiendas){
+      hayTiendas = true;
+      const k = String(x.t).replace(/^ALMACEN\s+/i,'');
+      if (!tiendaAgg[k]) tiendaAgg[k] = {u:0, c:0};
+      tiendaAgg[k].u += x.u; tiendaAgg[k].c += x.u * r.costo;
+    }
+  }
+  if (hayTiendas){
+    const ts = Object.entries(tiendaAgg).map(([t,v]) => ({t, ...v})).sort((x,y) => y.u - x.u).slice(0,12);
+    const maxT = ts[0].u;
+    h += `<div class="an-card">
+      <div class="an-title">Dónde está el inventario (por tienda)</div>
+      <div class="an-sub">Unidades de la selección actual en cada almacén — dónde no se ha vendido</div>
+      ${ts.map(s => `<div class="hbar-row">
+        <span>${esc(s.t)}</span>
+        <div class="hbar-track" style="width:${Math.max(4,(s.u/maxT*100)).toFixed(1)}%">
+          <div class="seg" style="flex:1; background:var(--accent)"></div></div>
+        <span class="hbar-val">${fmtInt(s.u)} u. <small>· ${fmtCOPc(s.c)} costo</small></span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  /* 7 — comparativo entre colecciones */
+  const cols = groupAgg(RAW, r => r.feria).sort((x,y) => y.a.venta - x.a.venta);
+  if (cols.length > 1){
+    const fSel = document.getElementById('fFeria').value;
+    h += `<div class="an-card">
+      <div class="an-title">Comparativo entre colecciones</div>
+      <div class="an-sub">Todas las colecciones del archivo, para dimensionar cuál compra ha funcionado mejor</div>
+      <div class="tablewrap" style="border:0; border-radius:0"><table style="min-width:760px">
+        <tr><th>Colección</th><th class="num">Refs</th><th class="num">Edad típica (d)</th><th class="num">ST</th>
+        <th class="num">Esperado</th><th class="num">Venta $</th><th class="num">Inv. unid.</th><th class="num">Inv. $ costo</th><th>Ritmo</th></tr>
+        ${cols.map(c => {
+          const cb = ritmoBadge(c.a);
+          return `<tr class="${c.nombre === fSel ? 'comp-hl' : ''}">
+            <td><b>${esc(c.nombre)}</b></td><td class="num">${fmtInt(c.n)}</td>
+            <td class="num">${fmtInt(c.a.edadTipica)}</td>
+            <td class="num"><b>${pct(c.a.st)}</b></td><td class="num">${pct(c.a.exp)}</td>
+            <td class="num">${fmtCOPc(c.a.venta)}</td><td class="num">${fmtInt(c.a.inv)}</td>
+            <td class="num">${fmtCOPc(c.a.invCosto)}</td>
+            <td><span class="ritmo-badge" style="background:${cb.bg}; color:${cb.color}; font-size:10.5px; padding:2px 8px">${cb.icon} ${cb.label}</span></td>
+          </tr>`;
+        }).join('')}
+      </table></div>
+    </div>`;
+  }
+
+  return h + '</div>';
+}
+
 function render(){
   const rows = currentRows();
   renderActiveFilters();
@@ -729,7 +1014,8 @@ function render(){
   }
   content.innerHTML = view === 'cards'
     ? `<div class="grid">${rows.map(cardHTML).join('')}</div>`
-    : tableHTML(rows);
+    : view === 'table' ? tableHTML(rows)
+    : analisisHTML(rows);
 }
 function currentRowsNoEstado(){
   const saved = estadoFilter; estadoFilter = null;
@@ -793,12 +1079,15 @@ document.getElementById('fileInput').addEventListener('change', e => {
   document.getElementById(id).addEventListener('change', () => { refreshFilterOptions(); render(); }));
 document.getElementById('fOrden').addEventListener('change', render);
 document.getElementById('fBuscar').addEventListener('input', render);
-document.getElementById('btnCards').onclick = () => { view='cards';
-  document.getElementById('btnCards').classList.add('active');
-  document.getElementById('btnTable').classList.remove('active'); render(); };
-document.getElementById('btnTable').onclick = () => { view='table';
-  document.getElementById('btnTable').classList.add('active');
-  document.getElementById('btnCards').classList.remove('active'); render(); };
+function setView(v){
+  view = v;
+  const map = {cards:'btnCards', table:'btnTable', analisis:'btnAnalisis'};
+  for (const k in map) document.getElementById(map[k]).classList.toggle('active', k === v);
+  render();
+}
+document.getElementById('btnCards').onclick = () => setView('cards');
+document.getElementById('btnTable').onclick = () => setView('table');
+document.getElementById('btnAnalisis').onclick = () => setView('analisis');
 
 /* ---------- exportar copia autocontenida con los datos actuales ---------- */
 function exportStandalone(){

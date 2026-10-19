@@ -261,6 +261,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <button class="btn" id="btnRefresh" style="display:none" title="Vuelve a leer los datos del archivo en línea">⟳ Actualizar datos</button>
       <button class="btn primary" onclick="document.getElementById('fileInput').click()">Cargar archivo</button>
       <button class="btn" id="btnShare" title="Genera una copia de este tablero con los datos actuales incluidos, lista para enviar por correo o Teams sin necesidad del Excel">Descargar con datos</button>
+      <button class="btn" id="btnInforme" title="Genera un informe formal para compartir con el proveedor, según los filtros activos (sin costos ni información de margen)">Informe proveedor</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
       <span class="dropzone-hint">o arrastra tu Excel aquí</span>
     </div>
@@ -1110,6 +1111,205 @@ function exportStandalone(){
   URL.revokeObjectURL(a.href);
 }
 document.getElementById('btnShare').addEventListener('click', exportStandalone);
+
+/* ---------- informe para proveedor (según filtros activos) ----------
+   Documento formal autocontenido para compartir con el proveedor.
+   NUNCA incluye: costo unitario, inventario valorizado al costo ni margen.
+   Sí incluye: unidades, sell-through, edades, venta $, precio oferta y % dcto. */
+function slugify(s){ return norm(s).replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'todos'; }
+function narrativaProveedor(a, subs, titCol){
+  const b = ritmoBadge(a);
+  const gap = Math.round((a.st - a.exp) * 100);
+  const pctLiqInv = a.inv ? a.liqU / a.inv : 0;
+  const conVenta = subs.filter(s => s.a.comp > 0);
+  const peor = conVenta.length > 1 ? conVenta.reduce((m,s) => s.a.ritmo < m.a.ritmo ? s : m) : null;
+  const mejor = conVenta.length > 1 ? conVenta.reduce((m,s) => s.a.ritmo > m.a.ritmo ? s : m) : null;
+  let t = `A la fecha de corte, ${titCol} ha evacuado el <b>${pct(a.st)}</b> de las unidades compradas, ` +
+    `frente a un <b>${pct(a.exp)}</b> esperado para su edad típica de <b>${fmtInt(a.edadTipica)} días</b> ` +
+    `→ desempeño <b style="color:${b.color}">${b.label.toLowerCase()}</b>` +
+    (a.exp > 0.02 ? ` (${gap >= 0 ? '+' : ''}${gap} pts frente a lo esperado)` : '') + '. ';
+  t += `La venta acumulada es de <b>${fmtCOPc(a.venta)}</b> y quedan <b>${fmtInt(a.inv)} unidades</b> en piso ` +
+    `(equivalentes a ${fmtCOPc(a.invOferta)} a precio de venta actual)`;
+  t += pctLiqInv > 0 ? `; de ese inventario, el <b>${pct(pctLiqInv)}</b> ya está en edad de liquidación (121+ días), por lo que requerimos definir conjuntamente un plan de evacuación. ` : '. ';
+  if (peor && mejor && peor.nombre !== mejor.nombre){
+    t += `La sublínea más rezagada es <b>${esc(peor.nombre)}</b> (${pct(peor.a.st)} vs ${pct(peor.a.exp)} esperado) ` +
+         `y la de mejor desempeño es <b>${esc(mejor.nombre)}</b> (${pct(mejor.a.st)}), referente para próximas compras. `;
+  }
+  if (a.sinIng > 0) t += `${fmtInt(a.sinIng)} referencia${a.sinIng===1?'':'s'} aún no ingresa${a.sinIng===1?'':'n'} a piso.`;
+  return t;
+}
+function informeProveedor(){
+  const rows = currentRows();
+  if (!rows.length){ alert('No hay referencias con los filtros actuales para generar el informe.'); return; }
+  const fProv = document.getElementById('fProv').value;
+  const fCol = document.getElementById('fFeria').value;
+  const fLin = document.getElementById('fLinea').value;
+  if (!fProv && !confirm('No has filtrado un proveedor: el informe saldrá con TODOS los proveedores de la selección actual. ¿Deseas continuar?')) return;
+
+  const a = aggRows(rows);
+  const subs = groupAgg(rows, r => r.subcat).sort((x,y) => x.a.ritmo - y.a.ritmo);
+  const b = ritmoBadge(a);
+  const titProv = fProv || 'Todos los proveedores';
+  const titCol = fCol ? `la colección «${esc(fCol)}»` : 'las colecciones seleccionadas';
+  const hoy = new Date();
+  const fechaTxt = hoy.toLocaleDateString('es-CO', {day:'numeric', month:'long', year:'numeric'});
+  const fechaIso = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+
+  const thumb = r => r.foto
+    ? `<img src="${esc(r.foto)}" loading="lazy" style="width:44px;height:44px;object-fit:contain;border-radius:6px;background:var(--page)" onerror="this.replaceWith('${glyphFor(r.subcat)}')">`
+    : `<span style="font-size:20px">${glyphFor(r.subcat)}</span>`;
+
+  const subRows = subs.map(s => {
+    const sb = ritmoBadge(s.a);
+    return `<tr><td><b>${esc(s.nombre)}</b></td><td class="num">${fmtInt(s.n)}</td>
+      <td class="num"><b>${pct(s.a.st)}</b></td><td class="num">${pct(s.a.exp)}</td>
+      <td class="num">${fmtCOPc(s.a.venta)}</td><td class="num">${fmtInt(s.a.inv)}</td>
+      <td class="num">${s.a.inv ? pct(s.a.liqU/s.a.inv) : '—'}</td>
+      <td><span class="badge" style="background:${sb.bg}; color:${sb.color}">${sb.icon} ${sb.label}</span></td></tr>`;
+  }).join('');
+
+  const eleg = rows.filter(r => !r.sinIngresar && r.compradas > 0);
+  const top = eleg.slice().sort((x,y) => y.st - x.st).slice(0,5);
+  const low = eleg.slice().sort((x,y) => x.st - y.st).slice(0,5);
+  const topItem = r => `<tr><td>${thumb(r)}</td><td><b>${esc(r.desc || r.ref)}</b><br>
+    <small>${esc(r.ref)} · ${esc(r.subcat)} · ${fmtInt(r.edadDias)} días</small></td>
+    <td class="num"><b>${pct(r.st)}</b></td><td class="num">${fmtCOPc(r.venta)}</td><td class="num">${fmtInt(r.inventario)}</td></tr>`;
+  const topHead = `<tr><th></th><th>Referencia</th><th class="num">Sell-through</th><th class="num">Venta $</th><th class="num">Inv.</th></tr>`;
+
+  const enLiq = rows.filter(r => r.enLiquidacion).sort((x,y) => y.inventario - x.inventario);
+  const liqRows = enLiq.map(r => `<tr><td>${thumb(r)}</td>
+    <td><b>${esc(r.desc || r.ref)}</b><br><small>${esc(r.ref)} · ${esc(r.subcat)}</small></td>
+    <td class="num">${fmtInt(r.edadDias)}</td><td class="num">${fmtInt(r.inventario)}</td>
+    <td class="num"><b>${pct(r.st)}</b></td>
+    <td class="num">${r.dcto > 0 ? `<b style="color:var(--serious)">−${pct(r.dcto)}</b>` : 'Sin dcto'}</td>
+    <td class="num">${fmtCOPc(r.venta)}</td></tr>`).join('');
+
+  const detRows = rows.slice().sort((x,y) => y.sev - x.sev || x.st - y.st).map(r => {
+    const s = ESTADOS[r.estado];
+    return `<tr><td><b>${esc(r.ref)}</b></td><td>${esc(r.desc)}</td><td>${esc(r.subcat)}</td>
+      <td class="num">${r.sinIngresar ? '—' : fmtInt(r.edadDias)}</td>
+      <td><span style="color:${s.color}; font-weight:700">${s.icon}</span> ${r.estado}</td>
+      <td class="num">${fmtInt(r.compradas)}</td><td class="num">${fmtInt(r.vendidas)}</td>
+      <td class="num">${fmtInt(r.inventario)}</td><td class="num"><b>${pct(r.st)}</b></td>
+      <td class="num">${r.dcto > 0 ? pct(r.dcto) : '—'}</td>
+      <td class="num">${r.precio > 0 ? fmtCOP(r.precio) : '—'}</td><td class="num">${fmtCOP(r.venta)}</td></tr>`;
+  }).join('');
+
+  const doc = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informe ${esc(titProv)} · ${esc(fCol || 'Colecciones')} · ${fechaIso}</title>
+<style>
+  :root{ --page:#f9f9f7; --surface:#ffffff; --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+    --grid:#e1e0d9; --ring:rgba(11,11,11,.12); --accent:#2a78d6;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+    --good-bg:rgba(12,163,12,.10); --warning-bg:rgba(250,178,25,.14); --serious-bg:rgba(236,131,90,.14);
+    --critical-bg:rgba(208,59,59,.10); --accent-bg:rgba(42,120,214,.10); }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--page); color:var(--ink-1); font-size:13.5px; line-height:1.5;}
+  .wrap{max-width:900px; margin:0 auto; padding:28px 28px 50px;}
+  .card{background:var(--surface); border:1px solid var(--ring); border-radius:12px; padding:18px 22px; margin-bottom:14px; break-inside:avoid;}
+  h1{font-size:21px; letter-spacing:-.2px;}
+  h2{font-size:15px; margin-bottom:10px;}
+  .meta{color:var(--ink-2); font-size:12.5px; margin-top:4px;}
+  .badge{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; white-space:nowrap;}
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:10px; margin-top:14px;}
+  .tile{background:var(--page); border:1px solid var(--grid); border-radius:10px; padding:9px 12px;}
+  .tile .l{font-size:11px; color:var(--ink-2);}
+  .tile .v{font-size:18px; font-weight:600;}
+  .tile .n{font-size:10.5px; color:var(--ink-3);}
+  table{border-collapse:collapse; width:100%; font-size:12px;}
+  th{text-align:left; font-size:11px; color:var(--ink-2); padding:7px 8px; border-bottom:1.5px solid var(--ink-3); white-space:nowrap;}
+  td{padding:6px 8px; border-bottom:1px solid var(--grid); vertical-align:middle;}
+  th.num, td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  small{color:var(--ink-3); font-size:10.5px;}
+  .stackbar{display:flex; height:18px; border-radius:6px; overflow:hidden; background:var(--page); margin-top:6px;}
+  .stackbar .seg{border-right:2px solid var(--surface); min-width:2px;}
+  .stackbar .seg:last-child{border-right:0;}
+  .leg{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:9px; font-size:11.5px; color:var(--ink-2);}
+  .leg .dot{width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px;}
+  .narr{font-size:13.5px; line-height:1.65; margin-top:10px;}
+  footer{font-size:10.5px; color:var(--ink-3); line-height:1.6; margin-top:18px;}
+  .printbtn{position:fixed; top:14px; right:14px; background:var(--accent); color:#fff; border:0; border-radius:8px;
+    padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.2);}
+  @media print{ .printbtn{display:none;} body{background:#fff;} .card{border:1px solid #ddd; box-shadow:none;} .wrap{padding:0;} }
+</style></head><body>
+<button class="printbtn" onclick="window.print()">🖨 Imprimir / guardar PDF</button>
+<div class="wrap">
+  <div class="card">
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; justify-content:space-between;">
+      <div>
+        <h1>Informe de desempeño en piso</h1>
+        <div class="meta"><b>Proveedor:</b> ${esc(titProv)} &nbsp;·&nbsp; <b>Colección:</b> ${esc(fCol || 'Todas')}${fLin ? ` &nbsp;·&nbsp; <b>Línea:</b> ${esc(fLin)}` : ''}</div>
+        <div class="meta"><b>Fecha de corte:</b> ${fechaTxt} &nbsp;·&nbsp; Decoración · Muebles Jamar</div>
+      </div>
+      <span class="badge" style="background:${b.bg}; color:${b.color}; font-size:12.5px; padding:6px 14px">${b.icon} ${b.label}</span>
+    </div>
+    <p class="narr">${narrativaProveedor(a, subs, titCol)}</p>
+    <div class="tiles">
+      <div class="tile"><div class="l">Referencias</div><div class="v">${fmtInt(a.refs + a.sinIng)}</div><div class="n">${a.sinIng>0 ? fmtInt(a.sinIng)+' sin ingresar' : 'en piso'}</div></div>
+      <div class="tile"><div class="l">Sell-through</div><div class="v">${pct(a.st)}</div><div class="n">esperado ${pct(a.exp)}</div></div>
+      <div class="tile"><div class="l">Unid. vendidas</div><div class="v">${fmtInt(a.vend)}</div><div class="n">de ${fmtInt(a.comp)} compradas</div></div>
+      <div class="tile"><div class="l">Venta acumulada</div><div class="v">${fmtCOPc(a.venta)}</div><div class="n">a precio de venta</div></div>
+      <div class="tile"><div class="l">Inventario</div><div class="v">${fmtInt(a.inv)}</div><div class="n">${fmtCOPc(a.invOferta)} a precio oferta</div></div>
+      <div class="tile"><div class="l">En liquidación</div><div class="v">${fmtInt(enLiq.length)}</div><div class="n">refs con 121+ días</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Edad del inventario restante (${fmtInt(a.inv)} unidades)</h2>
+    ${stackbarHTML(EDAD_SEGS(a), a.inv)}
+    <div class="leg">
+      <span><span class="dot" style="background:var(--good)"></span>Sana 0–90 d: ${fmtInt(a.sanaU)} u.</span>
+      <span><span class="dot" style="background:var(--warning)"></span>Lenta temprana 91–120 d: ${fmtInt(a.tempU)} u.</span>
+      <span><span class="dot" style="background:var(--serious)"></span>Liquidación 121–240 d: ${fmtInt(a.tardU)} u.</span>
+      <span><span class="dot" style="background:var(--critical)"></span>Obsoleto +240 d: ${fmtInt(a.obsU)} u.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Desempeño por sublínea</h2>
+    <table><tr><th>Sublínea</th><th class="num">Refs</th><th class="num">Sell-through</th><th class="num">Esperado</th>
+      <th class="num">Venta $</th><th class="num">Inv. unid.</th><th class="num">% inv. en liq.</th><th>Ritmo</th></tr>${subRows}</table>
+  </div>
+
+  ${eleg.length >= 2 ? `<div class="card"><h2 style="color:#006300">▲ Referencias de mejor desempeño</h2>
+    <table>${topHead}${top.map(topItem).join('')}</table></div>
+  <div class="card"><h2 style="color:var(--critical)">▼ Referencias de menor rotación</h2>
+    <table>${topHead}${low.map(topItem).join('')}</table></div>` : ''}
+
+  ${enLiq.length ? `<div class="card">
+    <h2 style="color:var(--serious)">Referencias en liquidación (121+ días) — requieren plan de evacuación</h2>
+    <table><tr><th></th><th>Referencia</th><th class="num">Edad (d)</th><th class="num">Inventario</th>
+      <th class="num">Sell-through</th><th class="num">Dcto activo</th><th class="num">Venta $</th></tr>${liqRows}</table>
+  </div>` : ''}
+
+  <div class="card">
+    <h2>Detalle completo de referencias (${fmtInt(rows.length)})</h2>
+    <div style="overflow-x:auto"><table style="min-width:820px">
+      <tr><th>Ref.</th><th>Descripción</th><th>Sublínea</th><th class="num">Edad (d)</th><th>Estado</th>
+      <th class="num">Compr.</th><th class="num">Vend.</th><th class="num">Inv.</th><th class="num">ST</th>
+      <th class="num">% Dcto</th><th class="num">Precio</th><th class="num">Venta $</th></tr>${detRows}
+    </table></div>
+  </div>
+
+  <footer>
+    <b>Cómo leer este informe:</b> el estado de cada referencia se define por la edad del inventario en días:
+    Edad sana 0–90 · Lenta rotación temprana 91–120 · Lenta rotación tardía (liquidación) 121–240 · Obsoleto +240.
+    El sell-through es el % de las unidades compradas ya vendidas; el "esperado" corresponde a una evacuación del 100% a los 90 días.
+    Venta y precios a precio de venta al público (oferta vigente). Fecha de corte: ${fechaTxt}.<br>
+    <b>Confidencial</b> — Información de Muebles Jamar S.A. para uso exclusivo del proveedor destinatario. Generado por el Tablero de Colecciones · Decoración.
+  </footer>
+</div>
+</body></html>`;
+
+  const blob = new Blob([doc], {type:'text/html'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Informe_${slugify(titProv)}_${slugify(fCol || 'colecciones')}_${fechaIso}.html`;
+  document.body.appendChild(link); link.click(); link.remove();
+  URL.revokeObjectURL(link.href);
+}
+document.getElementById('btnInforme').addEventListener('click', informeProveedor);
 
 /* ---------- alimentación en línea (OneDrive Excel / Google Sheets / URL directa) ---------- */
 function normalizeDataUrl(u){

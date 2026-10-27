@@ -187,6 +187,27 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .trow b{font-variant-numeric:tabular-nums;}
   .tiendas.vt summary{background:var(--good-bg); color:var(--good-text); border-color:var(--good);}
   .tiendas.vt summary:hover{background:var(--good); color:#fff;}
+  .tiendas.pt summary{width:auto; height:16px; padding:0 8px; border-radius:999px; background:var(--accent-bg); color:var(--accent-deep); border:1px solid var(--accent); font-size:9.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;}
+  .tiendas.pt summary:hover{background:var(--accent); color:#fff;}
+  .ptpanel{min-width:320px;}
+  .ptsum{font-size:11px; color:var(--ink-2); margin-bottom:8px;}
+  .ptsum b{color:var(--ink-1);}
+  .pthead,.ptrow{display:grid; grid-template-columns:1fr 36px 36px 70px; gap:6px; align-items:center;}
+  .pthead{font-size:9.5px; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-3); padding-bottom:4px; border-bottom:1px solid var(--grid);}
+  .pthead span:not(:first-child){text-align:right;}
+  .ptrow{padding:5px 0; border-bottom:1px solid var(--grid);}
+  .ptname{min-width:0;}
+  .ptname>span{display:block; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ptbar{height:4px; border-radius:3px; background:var(--accent-bg); margin-top:3px; overflow:hidden;}
+  .ptfill{height:100%;}
+  .ptfill.ok{background:var(--good);} .ptfill.mid{background:var(--accent);} .ptfill.bad{background:var(--critical);}
+  .ptv{text-align:right; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .pti{text-align:right; font-size:12px; color:var(--ink-2); font-variant-numeric:tabular-nums;}
+  .pts{text-align:right;}
+  .ptchip{display:inline-block; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:999px; white-space:nowrap;}
+  .ptchip.ok{background:var(--good-bg); color:var(--good-text);}
+  .ptchip.mid{background:var(--accent-bg); color:var(--accent-deep);}
+  .ptchip.bad{background:var(--critical-bg); color:var(--critical);}
   .conc-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px;}
   .conc-h{font-size:11px; font-weight:700; color:var(--ink-2); margin-bottom:4px; text-transform:uppercase; letter-spacing:.3px;}
   .conc-i{font-size:12px; padding:2px 0; border-bottom:1px solid var(--grid);}
@@ -284,7 +305,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="f-group"><label for="fOrden">Ordenar por</label>
       <select id="fOrden">
         <option value="alerta">Alerta (peor primero)</option>
-        <option value="venta_desc">Mayor venta $</option>
+        <option value="venta_desc" selected>Mayor venta $</option>
         <option value="inv_desc">Mayor inventario</option>
       </select></div>
     <div class="f-group f-search"><label for="fBuscar">Buscar producto</label>
@@ -383,15 +404,26 @@ const glyphFor = sub => GLYPHS[norm(sub)] || '🏷️';
 /* nombre de tienda para mostrar (quita el prefijo ALMACEN) */
 const cleanT = t => String(t ?? '').replace(/^ALMACEN\s+/i,'').replace(/\s+/g,' ').trim();
 /* clave canónica de tienda: unifica nombres equivalentes para conciliar ventas vs inventario */
+/* alias de tiendas que se llaman distinto en ventas vs inventario
+   (clave = nombre canónico que aparece en una hoja -> canónico de la otra) */
+const ALIAS_TIENDAS = {
+  'valledupar loperena':'valledupar',   // ventas: Valledupar Loperena = inventario: Valledupar
+  'cacique':'bucaramanga',              // ventas: Cacique = inventario: Bucaramanga
+  'mayorca':'medellin',                 // ventas: Mayorca = inventario: Medellin
+  'trinitarias':'metropolitano',        // ventas: Trinitarias = inventario: Metropolitano
+};
 function canonTienda(t){
-  return norm(t)
+  const c = norm(t)
     .replace(/centro comercial/g,' ')
     .replace(/jamar/g,' ')                               // marca: hiperjamar -> hiper, jamar norte -> norte
     .replace(/\b(almacen|local|tienda|sucursal|cc|cen?dis|cedi)\b/g,' ')
     .replace(/\b(los|las|la|el|de|del)\b/g,' ')          // los molinos = molinos, la florida = florida
     .replace(/[^a-z0-9ñ ]+/g,' ')
     .replace(/\s+/g,' ').trim();
+  return ALIAS_TIENDAS[c] || c;
 }
+/* bodegas / centros de distribución que no venden al público (fuera del panel por tienda) */
+function esBodega(t){ return /cendis|plataforma|outlet|bodega|reacondicion/.test(norm(t)); }
 
 /* ---------- lectura de encabezados flexibles ---------- */
 const HMAP = {
@@ -507,6 +539,18 @@ function buildRows(rawRows){
     else if (edadDias >= 91){ estado = 'Lenta rotación temprana'; sev = 3; }
     else { estado = 'Edad sana'; sev = 1; }
 
+    // combinado por tienda (ventas + inventario) emparejado por nombre canónico
+    const _inv = (STORE_MAP && STORE_MAP[keyRef(o.ref)]) || null;
+    const _ven = (SALES_MAP && SALES_MAP[keyRef(o.ref)]) || null;
+    let porTienda = null;
+    if (_inv || _ven){
+      const map = {};
+      if (_ven) for (const t in _ven){ const c = canonTienda(t) || norm(t); if (!map[c]) map[c] = {name:cleanT(t), v:0, i:0}; map[c].v += _ven[t]; }
+      if (_inv) for (const t in _inv){ const c = canonTienda(t) || norm(t); if (!map[c]) map[c] = {name:cleanT(t), v:0, i:0}; map[c].i += _inv[t]; }
+      porTienda = Object.values(map).filter(x => (x.v > 0 || x.i > 0) && !esBodega(x.name)).sort((a,b) => b.v - a.v || b.i - a.i);
+      if (!porTienda.length) porTienda = null;
+    }
+
     out.push({
       ref:String(o.ref).trim(), desc:o.desc||'', feria:String(o.feria).trim(), prov:String(o.prov||'—').trim(),
       linea:o.linea||'—', subcat:o.subcat||'', estilo:o.estilo||'', foto:(o.foto||'').toString().trim(),
@@ -518,7 +562,7 @@ function buildRows(rawRows){
       ventasTienda: (SALES_MAP && SALES_MAP[keyRef(o.ref)])
         ? Object.entries(SALES_MAP[keyRef(o.ref)]).filter(([t,u]) => u > 0).map(([t,u]) => ({t, u})).sort((a,b) => b.u - a.u)
         : null,
-      sinIngresar, enLiquidacion, invCosto: inventario * costo, estado, sev,
+      sinIngresar, enLiquidacion, invCosto: inventario * costo, estado, sev, porTienda,
     });
   }
   return out;
@@ -713,12 +757,37 @@ function ventasTiendasTitle(r){
   if (!r.ventasTienda || !r.ventasTienda.length) return '';
   return r.ventasTienda.map(x => `${cleanT(x.t)}: ${x.u}`).join(' · ');
 }
+function porTiendaHTML(r){
+  if (!r.porTienda || !r.porTienda.length) return '';
+  const tv = r.porTienda.reduce((s,x) => s + x.v, 0);
+  const ti = r.porTienda.reduce((s,x) => s + x.i, 0);
+  const tot = tv + ti, stG = tot ? Math.round(tv / tot * 100) : 0;
+  const rowsH = r.porTienda.map(x => {
+    const t2 = x.v + x.i, st = t2 ? Math.round(x.v / t2 * 100) : 0;
+    let lbl, cls;
+    if (x.i === 0 && x.v > 0){ lbl = 'Agotada'; cls = 'ok'; }
+    else if (x.v === 0 && x.i > 0){ lbl = 'Sin venta'; cls = 'bad'; }
+    else { lbl = 'Rotando'; cls = 'mid'; }
+    return `<div class="ptrow">
+      <div class="ptname"><span>${esc(x.name)}</span><div class="ptbar"><div class="ptfill ${cls}" style="width:${st}%"></div></div></div>
+      <div class="ptv">${fmtInt(x.v)}</div><div class="pti">${fmtInt(x.i)}</div>
+      <div class="pts"><span class="ptchip ${cls}">${lbl}</span></div>
+    </div>`;
+  }).join('');
+  return `<details class="tiendas pt"><summary title="Ventas e inventario por tienda">tiendas</summary>
+    <div class="tpanel ptpanel">
+      <div class="tt">Por tienda</div>
+      <div class="ptsum">Vend. <b>${fmtInt(tv)}</b> · Inv. <b>${fmtInt(ti)}</b> · ${stG}% evacuado</div>
+      <div class="pthead"><span>Tienda</span><span>Vend.</span><span>Inv.</span><span>Estado</span></div>
+      ${rowsH}
+    </div></details>`;
+}
 /* conciliación de nombres de tienda entre ventas e inventario */
 function conciliacionTiendas(){
   if (!SALES_MAP && !STORE_MAP) return null;
   const inv = {}, ven = {};
-  if (STORE_MAP) for (const k in STORE_MAP) for (const t in STORE_MAP[k]){ const c = canonTienda(t); if (c) inv[c] = cleanT(t); }
-  if (SALES_MAP) for (const k in SALES_MAP) for (const t in SALES_MAP[k]){ const c = canonTienda(t); if (c) ven[c] = cleanT(t); }
+  if (STORE_MAP) for (const k in STORE_MAP) for (const t in STORE_MAP[k]){ if (esBodega(t)) continue; const c = canonTienda(t); if (c) inv[c] = cleanT(t); }
+  if (SALES_MAP) for (const k in SALES_MAP) for (const t in SALES_MAP[k]){ if (esBodega(t)) continue; const c = canonTienda(t); if (c) ven[c] = cleanT(t); }
   const soloVentas = [], soloInv = []; let comunes = 0;
   for (const c in ven){ if (inv[c]) comunes++; else soloVentas.push(ven[c]); }
   for (const c in inv){ if (!ven[c]) soloInv.push(inv[c]); }
@@ -774,8 +843,8 @@ function cardHTML(r){
         </div>
       </div>
       <div class="mini-stats">
-        <div class="ms"><div class="k">Inventario</div><div class="v">${fmtInt(r.inventario)}${tiendasHTML(r)}</div></div>
-        <div class="ms"><div class="k">Vendidas</div><div class="v">${fmtInt(r.vendidas)} / ${fmtInt(r.compradas)}${ventasTiendasHTML(r)}</div></div>
+        <div class="ms"><div class="k">Inventario</div><div class="v">${fmtInt(r.inventario)}</div></div>
+        <div class="ms"><div class="k">Vendidas</div><div class="v">${fmtInt(r.vendidas)} / ${fmtInt(r.compradas)}${porTiendaHTML(r)}</div></div>
         <div class="ms"><div class="k">Venta $</div><div class="v">${fmtCOPc(r.venta)}</div></div>
       </div>
       <div class="cov-note ${covBad?'bad':''}">${covBad?'⚠ ':''}${covTxt}</div>

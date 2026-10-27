@@ -189,22 +189,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .tiendas.vt summary:hover{background:var(--good); color:#fff;}
   .tiendas.pt summary{width:auto; height:16px; padding:0 8px; border-radius:999px; background:var(--accent-bg); color:var(--accent-deep); border:1px solid var(--accent); font-size:9.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;}
   .tiendas.pt summary:hover{background:var(--accent); color:#fff;}
-  .ptpanel{min-width:320px;}
-  .ptsum{font-size:11px; color:var(--ink-2); margin-bottom:8px;}
+  .ptpanel{min-width:385px; max-height:300px;}
+  .ptsum{font-size:12.5px; color:var(--ink-2); margin-bottom:10px;}
   .ptsum b{color:var(--ink-1);}
-  .pthead,.ptrow{display:grid; grid-template-columns:1fr 36px 36px 70px; gap:6px; align-items:center;}
-  .pthead{font-size:9.5px; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-3); padding-bottom:4px; border-bottom:1px solid var(--grid);}
+  .pthead,.ptrow{display:grid; grid-template-columns:1fr 62px 66px 82px; gap:8px; align-items:center;}
+  .pthead{font-size:10.5px; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-3); padding-bottom:5px; border-bottom:1px solid var(--grid);}
   .pthead span:not(:first-child){text-align:right;}
-  .ptrow{padding:5px 0; border-bottom:1px solid var(--grid);}
+  .ptrow{padding:7px 0; border-bottom:1px solid var(--grid);}
   .ptname{min-width:0;}
-  .ptname>span{display:block; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .ptbar{height:4px; border-radius:3px; background:var(--accent-bg); margin-top:3px; overflow:hidden;}
+  .ptname>span{display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ptbar{height:5px; border-radius:3px; background:var(--accent-bg); margin-top:4px; overflow:hidden;}
   .ptfill{height:100%;}
   .ptfill.ok{background:var(--good);} .ptfill.mid{background:var(--accent);} .ptfill.bad{background:var(--critical);}
-  .ptv{text-align:right; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums;}
-  .pti{text-align:right; font-size:12px; color:var(--ink-2); font-variant-numeric:tabular-nums;}
+  .ptv{text-align:right; font-size:15px; font-weight:700; color:var(--ink-1); font-variant-numeric:tabular-nums;}
+  .pti{text-align:right; font-size:15px; font-weight:700; color:var(--ink-1); font-variant-numeric:tabular-nums;}
   .pts{text-align:right;}
-  .ptchip{display:inline-block; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:999px; white-space:nowrap;}
+  .ptchip{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap;}
   .ptchip.ok{background:var(--good-bg); color:var(--good-text);}
   .ptchip.mid{background:var(--accent-bg); color:var(--accent-deep);}
   .ptchip.bad{background:var(--critical-bg); color:var(--critical);}
@@ -777,8 +777,8 @@ function porTiendaHTML(r){
   return `<details class="tiendas pt"><summary title="Ventas e inventario por tienda">tiendas</summary>
     <div class="tpanel ptpanel">
       <div class="tt">Por tienda</div>
-      <div class="ptsum">Vend. <b>${fmtInt(tv)}</b> · Inv. <b>${fmtInt(ti)}</b> · ${stG}% evacuado</div>
-      <div class="pthead"><span>Tienda</span><span>Vend.</span><span>Inv.</span><span>Estado</span></div>
+      <div class="ptsum">Vendidas <b>${fmtInt(tv)}</b> · En inventario <b>${fmtInt(ti)}</b> · ${stG}% evacuado</div>
+      <div class="pthead"><span>Tienda</span><span>Vendidas</span><span>Inventario</span><span>Estado</span></div>
       ${rowsH}
     </div></details>`;
 }
@@ -1258,6 +1258,11 @@ document.getElementById('btnCards').onclick = () => setView('cards');
 document.getElementById('btnTable').onclick = () => setView('table');
 document.getElementById('btnAnalisis').onclick = () => setView('analisis');
 
+// cerrar el panel "por tienda" al hacer clic en cualquier otro lugar
+document.addEventListener('click', e => {
+  document.querySelectorAll('details.tiendas[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; });
+});
+
 /* ---------- exportar copia autocontenida con los datos actuales ---------- */
 function exportStandalone(){
   const json = JSON.stringify(RAW_JSON).replace(/<\//g,'<\\/');
@@ -1414,8 +1419,11 @@ function informeProveedor(){
   footer{font-size:10.5px; color:var(--ink-3); line-height:1.6; margin-top:18px;}
   .printbtn{position:fixed; top:14px; right:14px; background:var(--accent); color:#fff; border:0; border-radius:8px;
     padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.2);}
-  @media print{ .printbtn{display:none;} body{background:#fff;} .card{border:1px solid #ddd; box-shadow:none;} .wrap{padding:0;} }
+  .dlbtn{position:fixed; top:14px; right:200px; background:var(--surface-1); color:var(--ink-1); border:1px solid var(--ring); border-radius:8px;
+    padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.12);}
+  @media print{ .printbtn,.dlbtn{display:none;} body{background:#fff;} .card{border:1px solid #ddd; box-shadow:none;} .wrap{padding:0;} }
 </style></head><body>
+<button class="dlbtn" onclick="descargarInforme()">⬇ Descargar</button>
 <button class="printbtn" onclick="window.print()">🖨 Imprimir / guardar PDF</button>
 <div class="wrap">
   <div class="card">
@@ -1485,14 +1493,22 @@ function informeProveedor(){
     <b>Confidencial</b> — Información de Muebles Jamar S.A. para uso exclusivo del proveedor destinatario. Generado por el Tablero de Colecciones · Decoración.
   </footer>
 </div>
+<script>
+function descargarInforme(){
+  var b = new Blob(['<!DOCTYPE html>\n' + document.documentElement.outerHTML], {type:'text/html'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'Informe_${slugify(titProv)}_${slugify(fCol || 'colecciones')}_${fechaIso}.html';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+<\/script>
 </body></html>`;
 
   const blob = new Blob([doc], {type:'text/html'});
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `Informe_${slugify(titProv)}_${slugify(fCol || 'colecciones')}_${fechaIso}.html`;
-  document.body.appendChild(link); link.click(); link.remove();
-  URL.revokeObjectURL(link.href);
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+  if (!w) alert('El navegador bloqueó la ventana emergente. Permite las ventanas emergentes de esta página para abrir el informe.');
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
 }
 document.getElementById('btnInforme').addEventListener('click', informeProveedor);
 

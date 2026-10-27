@@ -144,8 +144,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   /* ---------- product cards ---------- */
   .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px;}
-  .card{background:var(--surface-1); border:1px solid var(--ring); border-radius:12px; overflow:hidden; display:flex; flex-direction:column;}
-  .card .ph{position:relative; aspect-ratio:4/3; background:var(--page); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .card{background:var(--surface-1); border:1px solid var(--ring); border-radius:12px; display:flex; flex-direction:column;}
+  .card .ph{position:relative; aspect-ratio:4/3; background:var(--page); display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:12px 12px 0 0;}
   .card .ph img{width:100%; height:100%; object-fit:contain;}
   .ph-fallback{display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--ink-3); font-size:11px;}
   .ph-fallback .glyph{font-size:34px; line-height:1;}
@@ -189,22 +189,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .tiendas.vt summary:hover{background:var(--good); color:#fff;}
   .tiendas.pt summary{width:auto; height:16px; padding:0 8px; border-radius:999px; background:var(--accent-bg); color:var(--accent-deep); border:1px solid var(--accent); font-size:9.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;}
   .tiendas.pt summary:hover{background:var(--accent); color:#fff;}
-  .ptpanel{min-width:385px; max-height:300px;}
-  .ptsum{font-size:12.5px; color:var(--ink-2); margin-bottom:10px;}
+  .ptpanel{min-width:320px; max-height:280px;}
+  .ptsum{font-size:12px; color:var(--ink-2); margin-bottom:9px;}
   .ptsum b{color:var(--ink-1);}
-  .pthead,.ptrow{display:grid; grid-template-columns:1fr 62px 66px 82px; gap:8px; align-items:center;}
-  .pthead{font-size:10.5px; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-3); padding-bottom:5px; border-bottom:1px solid var(--grid);}
+  .pthead,.ptrow{display:grid; grid-template-columns:1fr 42px 42px 78px; gap:8px; align-items:center;}
+  .pthead{font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-3); padding-bottom:5px; border-bottom:1px solid var(--grid);}
   .pthead span:not(:first-child){text-align:right;}
-  .ptrow{padding:7px 0; border-bottom:1px solid var(--grid);}
+  .ptrow{padding:6px 0; border-bottom:1px solid var(--grid);}
   .ptname{min-width:0;}
-  .ptname>span{display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ptname>span{display:block; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .ptbar{height:5px; border-radius:3px; background:var(--accent-bg); margin-top:4px; overflow:hidden;}
   .ptfill{height:100%;}
   .ptfill.ok{background:var(--good);} .ptfill.mid{background:var(--accent);} .ptfill.bad{background:var(--critical);}
-  .ptv{text-align:right; font-size:15px; font-weight:700; color:var(--ink-1); font-variant-numeric:tabular-nums;}
-  .pti{text-align:right; font-size:15px; font-weight:700; color:var(--ink-1); font-variant-numeric:tabular-nums;}
+  .ptv{text-align:right; font-size:13px; font-weight:700; color:var(--ink-1); font-variant-numeric:tabular-nums;}
+  .pti{text-align:right; font-size:13px; font-weight:400; color:var(--ink-2); font-variant-numeric:tabular-nums;}
   .pts{text-align:right;}
-  .ptchip{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap;}
+  .ptchip{display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap;}
   .ptchip.ok{background:var(--good-bg); color:var(--good-text);}
   .ptchip.mid{background:var(--accent-bg); color:var(--accent-deep);}
   .ptchip.bad{background:var(--critical-bg); color:var(--critical);}
@@ -776,9 +776,9 @@ function porTiendaHTML(r){
   }).join('');
   return `<details class="tiendas pt"><summary title="Ventas e inventario por tienda">tiendas</summary>
     <div class="tpanel ptpanel">
-      <div class="tt">Por tienda</div>
-      <div class="ptsum">Vendidas <b>${fmtInt(tv)}</b> · En inventario <b>${fmtInt(ti)}</b> · ${stG}% evacuado</div>
-      <div class="pthead"><span>Tienda</span><span>Vendidas</span><span>Inventario</span><span>Estado</span></div>
+      <div class="tt">Por tienda · ${esc(r.desc || r.ref)}</div>
+      <div class="ptsum">Vendidas <b>${fmtInt(tv)}</b> · Inventario <b>${fmtInt(ti)}</b> · ${stG}% evacuado</div>
+      <div class="pthead"><span>Tienda</span><span>Vend.</span><span>Inv.</span><span>Estado</span></div>
       ${rowsH}
     </div></details>`;
 }

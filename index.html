@@ -280,7 +280,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   <header>
     <div>
       <h1>Tablero de Seguimiento de Colecciones</h1>
-      <div class="sub">Decoración Jamar · Edad sana 0–90 días · Liquidación desde 121 días · Obsoleto +240 días · <b style="color:var(--accent-deep)">v8 · panel por tienda</b></div>
+      <div class="sub">Decoración Jamar · Edad sana 0–90 días · Liquidación desde 121 días · Obsoleto +240 días · <b style="color:var(--accent-deep)">v9 · sell-through por tienda</b></div>
     </div>
     <div class="hdr-actions">
       <span class="demo-chip" id="sourceChip">Datos de ejemplo</span>
@@ -1357,18 +1357,20 @@ function informeProveedor(){
     <td class="num">${r.dcto > 0 ? `<b style="color:var(--serious)">−${pct(r.dcto)}</b>` : 'Sin dcto'}</td>
     <td class="num">${fmtCOPc(r.venta)}</td></tr>`).join('');
 
-  // ventas por tienda (resumen para el informe)
+  // desempeño por tienda: ventas + inventario + sell-through por almacén
   const vtAgg = {};
   let hayVT = false;
-  for (const r of rows){ if (!r.ventasTienda) continue; for (const x of r.ventasTienda){ hayVT = true; const k = cleanT(x.t); vtAgg[k] = (vtAgg[k] || 0) + x.u; } }
-  const vtArr = Object.entries(vtAgg).map(([t,u]) => ({t,u})).sort((a,b) => b.u - a.u);
-  const vtTotal = vtArr.reduce((acc,x) => acc + x.u, 0);
+  for (const r of rows){ if (!r.porTienda) continue; for (const x of r.porTienda){ hayVT = true; const k = canonTienda(x.name) || norm(x.name); if (!vtAgg[k]) vtAgg[k] = {name:x.name, v:0, i:0}; vtAgg[k].v += x.v; vtAgg[k].i += x.i; } }
+  const vtArr = Object.values(vtAgg).sort((a,b) => b.v - a.v);
+  const vtVend = vtArr.reduce((acc,x) => acc + x.v, 0);
+  const vtInv  = vtArr.reduce((acc,x) => acc + x.i, 0);
+  const stStore = (v,i) => (v + i) > 0 ? pct(v / (v + i)) : '—';
   const ventaTiendaCard = hayVT ? `<div class="card">
-    <h2>Ventas por tienda</h2>
-    <div class="meta">Unidades vendidas de la selección en cada almacén — ${fmtInt(vtTotal)} unidades en total</div>
-    <table style="margin-top:10px"><tr><th>Tienda</th><th class="num">Unid. vendidas</th><th class="num">% del total</th></tr>
-      ${vtArr.map(x => `<tr><td>${esc(x.t)}</td><td class="num"><b>${fmtInt(x.u)}</b></td><td class="num">${vtTotal ? pct(x.u/vtTotal) : '—'}</td></tr>`).join('')}
-      <tr><td><b>Total</b></td><td class="num"><b>${fmtInt(vtTotal)}</b></td><td class="num">100%</td></tr>
+    <h2>Desempeño por tienda</h2>
+    <div class="meta">Ventas e inventario de la selección en cada almacén, con su sell-through (vendidas ÷ [vendidas + inventario]) — ${fmtInt(vtVend)} vendidas · ${fmtInt(vtInv)} en inventario</div>
+    <table style="margin-top:10px"><tr><th>Tienda</th><th class="num">Vendidas</th><th class="num">Inventario</th><th class="num">Sell-through</th><th class="num">% de la venta</th></tr>
+      ${vtArr.map(x => `<tr><td>${esc(x.name)}</td><td class="num"><b>${fmtInt(x.v)}</b></td><td class="num">${fmtInt(x.i)}</td><td class="num"><b>${stStore(x.v,x.i)}</b></td><td class="num">${vtVend ? pct(x.v/vtVend) : '—'}</td></tr>`).join('')}
+      <tr><td><b>Total</b></td><td class="num"><b>${fmtInt(vtVend)}</b></td><td class="num"><b>${fmtInt(vtInv)}</b></td><td class="num"><b>${stStore(vtVend,vtInv)}</b></td><td class="num">100%</td></tr>
     </table>
   </div>` : '';
 

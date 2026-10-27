@@ -267,7 +267,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <button class="btn primary" onclick="document.getElementById('fileInput').click()">Cargar archivo</button>
       <button class="btn" id="btnShare" title="Genera una copia de este tablero con los datos actuales incluidos, lista para enviar por correo o Teams sin necesidad del Excel">Descargar con datos</button>
       <button class="btn" id="btnInforme" title="Genera un informe formal para compartir con el proveedor, según los filtros activos (sin costos ni información de margen)">Informe proveedor</button>
-      <button class="btn" id="btnVentasTienda" title="Descarga un Excel con las unidades vendidas desglosadas por tienda, según los filtros activos">Ventas por tienda (Excel)</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
       <span class="dropzone-hint">o arrastra tu Excel aquí</span>
     </div>
@@ -288,8 +287,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <option value="venta_desc">Mayor venta $</option>
         <option value="inv_desc">Mayor inventario</option>
       </select></div>
-    <div class="f-group f-search"><label for="fBuscar">Buscar referencia</label>
-      <input type="search" id="fBuscar" placeholder="Referencia o descripción…"></div>
+    <div class="f-group f-search"><label for="fBuscar">Buscar producto</label>
+      <input type="search" id="fBuscar" placeholder="Ej: cojín verde · jarrón f261 · espejo glam"></div>
     <div class="view-toggle">
       <button id="btnCards" class="active">Tarjetas</button>
       <button id="btnTable">Tabla</button>
@@ -386,9 +385,10 @@ const cleanT = t => String(t ?? '').replace(/^ALMACEN\s+/i,'').replace(/\s+/g,' 
 /* clave canónica de tienda: unifica nombres equivalentes para conciliar ventas vs inventario */
 function canonTienda(t){
   return norm(t)
-    .replace(/\bcentro comercial\b/g,' ')
-    .replace(/\b(almacen|local|tienda|sucursal|cc)\b/g,' ')
-    .replace(/\bjamar\b/g,' ')
+    .replace(/centro comercial/g,' ')
+    .replace(/jamar/g,' ')                               // marca: hiperjamar -> hiper, jamar norte -> norte
+    .replace(/\b(almacen|local|tienda|sucursal|cc|cen?dis|cedi)\b/g,' ')
+    .replace(/\b(los|las|la|el|de|del)\b/g,' ')          // los molinos = molinos, la florida = florida
     .replace(/[^a-z0-9ñ ]+/g,' ')
     .replace(/\s+/g,' ').trim();
 }
@@ -590,9 +590,14 @@ function currentRows(){
   const p = document.getElementById('fProv').value;
   const l = document.getElementById('fLinea').value;
   const q = norm(document.getElementById('fBuscar').value);
+  // búsqueda por atributos del nombre: cada palabra debe aparecer (ej. "cojin verde", "jarron f261")
+  const terms = q.split(/\s+/).filter(Boolean);
   let rows = RAW.filter(r =>
     (!f || r.feria === f) && (!p || r.prov === p) && (!l || r.linea === l) &&
-    (!q || norm(r.ref).includes(q) || norm(r.desc).includes(q)));
+    (!terms.length || (() => {
+      const h = norm([r.ref, r.desc, r.subcat, r.estilo, r.feria, r.prov, r.linea].join(' '));
+      return terms.every(t => h.includes(t));
+    })()));
   if (estadoFilter) rows = rows.filter(r => r.estado === estadoFilter);
   const ord = document.getElementById('fOrden').value;
   const cmp = {
@@ -623,10 +628,11 @@ function renderKPIs(rows){
   rows.forEach(r => { if (r.ventasTienda) r.ventasTienda.forEach(x => { stSet[canonTienda(x.t)] = 1; conVentaTienda++; }); });
   const nTiendasVenta = Object.keys(stSet).length;
   const notaVend = nTiendasVenta > 0
-    ? `en ${fmtInt(nTiendasVenta)} tienda${nTiendasVenta===1?'':'s'} · ${pct(st)} sell-through`
-    : `${pct(st)} sell-through · de ${fmtInt(compradas)} compradas`;
+    ? `vendidas en ${fmtInt(nTiendasVenta)} tienda${nTiendasVenta===1?'':'s'}`
+    : `de ${fmtInt(compradas)} compradas`;
   document.getElementById('kpis').innerHTML =
     kpiTile('Referencias', fmtInt(rows.length), `${fmtInt(compradas)} unid. compradas${sinIng>0?` · ${fmtInt(sinIng)} sin ingresar`:''}`) +
+    kpiTile('Sell-through', pct(st), '% de evacuación de la feria') +
     kpiTile('Unidades vendidas', fmtInt(vendidas), notaVend) +
     kpiTile('Venta acumulada', fmtCOPc(venta)) +
     kpiTile('Inventario actual', fmtInt(inv) + ' <span class="unit">unid.</span>', invCosto>0 ? fmtCOPc(invCosto)+' al costo' : '') +
@@ -1420,48 +1426,6 @@ function informeProveedor(){
   URL.revokeObjectURL(link.href);
 }
 document.getElementById('btnInforme').addEventListener('click', informeProveedor);
-
-/* ---------- exportar ventas por tienda a Excel (según filtros activos) ---------- */
-function exportVentasTienda(){
-  const rows = currentRows().filter(r => r.ventasTienda && r.ventasTienda.length);
-  if (!rows.length){
-    alert('Aún no hay datos de ventas por tienda para la selección actual.\n\nRevisa que la pestaña de ventas por tienda esté configurada y publicada, o quita algún filtro.');
-    return;
-  }
-  // tiendas presentes (ordenadas por total vendido)
-  const agg = {};
-  for (const r of rows) for (const x of r.ventasTienda){ const k = cleanT(x.t); agg[k] = (agg[k] || 0) + x.u; }
-  const stores = Object.entries(agg).sort((a,b) => b[1]-a[1]).map(e => e[0]);
-  const total = stores.reduce((s,t) => s + agg[t], 0);
-
-  // Hoja 1: resumen por tienda
-  const resumen = [['Tienda','Unidades vendidas','% del total']];
-  for (const t of stores) resumen.push([t, agg[t], total ? agg[t]/total : 0]);
-  resumen.push(['TOTAL', total, 1]);
-
-  // Hoja 2: detalle referencia x tienda (matriz)
-  const head = ['Referencia','Descripción','Sublínea','Colección', ...stores, 'Total ref'];
-  const detalle = [head];
-  for (const r of rows){
-    const m = {}; for (const x of r.ventasTienda) m[cleanT(x.t)] = (m[cleanT(x.t)] || 0) + x.u;
-    let tot = 0; const cells = stores.map(t => { const u = m[t] || 0; tot += u; return u || ''; });
-    detalle.push([r.ref, r.desc, r.subcat, r.feria, ...cells, tot]);
-  }
-
-  const wb = XLSX.utils.book_new();
-  const wsR = XLSX.utils.aoa_to_sheet(resumen);
-  wsR['!cols'] = [{wch:30},{wch:17},{wch:12}];
-  for (let i = 1; i < resumen.length; i++){ const c = wsR['C'+(i+1)]; if (c) c.z = '0.0%'; }
-  XLSX.utils.book_append_sheet(wb, wsR, 'Resumen por tienda');
-  const wsD = XLSX.utils.aoa_to_sheet(detalle);
-  wsD['!cols'] = [{wch:14},{wch:36},{wch:16},{wch:16}, ...stores.map(() => ({wch:11})), {wch:11}];
-  XLSX.utils.book_append_sheet(wb, wsD, 'Detalle ref x tienda');
-
-  const hoy = new Date();
-  const fecha = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
-  XLSX.writeFile(wb, `Ventas_por_tienda_${fecha}.xlsx`);
-}
-document.getElementById('btnVentasTienda').addEventListener('click', exportVentasTienda);
 
 /* ---------- alimentación en línea (OneDrive Excel / Google Sheets / URL directa) ---------- */
 function normalizeDataUrl(u){

@@ -280,7 +280,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   <header>
     <div>
       <h1>Tablero de Seguimiento de Colecciones</h1>
-      <div class="sub">Decoración Jamar · Edad sana 0–90 días · Liquidación desde 121 días · Obsoleto +240 días · <b style="color:var(--accent-deep)">v9 · sell-through por tienda</b></div>
+      <div class="sub">Decoración Jamar · Edad sana 0–90 días · Liquidación desde 121 días · Obsoleto +240 días · <b style="color:var(--accent-deep)">v11 · orden por unidades</b></div>
     </div>
     <div class="hdr-actions">
       <span class="demo-chip" id="sourceChip">Datos de ejemplo</span>
@@ -304,8 +304,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <select id="fLinea"></select></div>
     <div class="f-group"><label for="fOrden">Ordenar por</label>
       <select id="fOrden">
+        <option value="vend_desc" selected>Más unidades vendidas</option>
+        <option value="venta_desc">Mayor venta $</option>
+        <option value="st_desc">Mejor sell-through</option>
         <option value="alerta">Alerta (peor primero)</option>
-        <option value="venta_desc" selected>Mayor venta $</option>
         <option value="inv_desc">Mayor inventario</option>
       </select></div>
     <div class="f-group f-search"><label for="fBuscar">Buscar producto</label>
@@ -500,8 +502,8 @@ function buildRows(rawRows){
     }
     if (vendidas == null) vendidas = Math.max(0, compradas - inventario);
     const precio = num(o.precio) ?? 0;
-    let venta = num(o.venta);
-    if (venta == null) venta = vendidas * precio;
+    // Venta $ coherente con las unidades oficiales (por tienda): unidades × precio
+    let venta = precio > 0 ? vendidas * precio : (num(o.venta) ?? 0);
     const costo = num(o.costo) ?? 0;
 
     // edad del inventario en DÍAS (columna diligenciada por el usuario);
@@ -645,10 +647,12 @@ function currentRows(){
   if (estadoFilter) rows = rows.filter(r => r.estado === estadoFilter);
   const ord = document.getElementById('fOrden').value;
   const cmp = {
+    vend_desc:(a,b) => b.vendidas - a.vendidas || b.venta - a.venta,
+    venta_desc:(a,b) => b.venta - a.venta || b.vendidas - a.vendidas,
+    st_desc:(a,b) => b.st - a.st || b.vendidas - a.vendidas,
     alerta: (a,b) => b.sev - a.sev || a.st - b.st,
-    venta_desc:(a,b) => b.venta - a.venta,
     inv_desc:(a,b) => b.inventario - a.inventario,
-  }[ord];
+  }[ord] || ((a,b) => b.vendidas - a.vendidas);
   return rows.sort(cmp);
 }
 
@@ -1657,6 +1661,12 @@ async function mergeAuxTabs(json){
       r['% Liquidación'] = precioMap[k].dcto ?? '';
     }
     if (fotoMap && fotoMap[k]) r['Foto URL'] = fotoMap[k];
+    // la hoja de ventas por tienda es la fuente oficial de unidades vendidas
+    if (SALES_MAP && SALES_MAP[k]){
+      let vt = 0;
+      for (const t in SALES_MAP[k]){ if (!esBodega(t)) vt += SALES_MAP[k][t]; }
+      if (vt > 0) r['Unidades Vendidas'] = vt;   // solo si el detalle por tienda trae datos
+    }
   }
   return json;
 }
